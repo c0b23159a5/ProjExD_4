@@ -48,7 +48,7 @@ class Bird(pg.sprite.Sprite):
         pg.K_RIGHT: (+1, 0),
     }
 
-    def __init__(self, num: int, xy: tuple[int, int]):
+    def __init__(self, num: int, xy: tuple[int, int], score: "Score"):
         """
         こうかとん画像Surfaceを生成する
         引数1 num：こうかとん画像ファイル名の番号
@@ -72,6 +72,9 @@ class Bird(pg.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.center = xy
         self.speed = 10
+        self.score = score  # スコアクラスを参照
+        self.state = "normal"
+        self.hyper_life = 0
 
     def change_img(self, num: int, screen: pg.Surface):
         """
@@ -93,6 +96,21 @@ class Bird(pg.sprite.Sprite):
             self.speed = 20
         else:
             self.speed = 10
+            
+        # 画像imageを変換したものに切り替える
+        # self.hyper_life -= 1 <= 0 self.state = "normal" 
+        if key_lst[pg.K_RSHIFT] and self.state == "normal" and self.score.value >= 100:
+            self.state = "hyper"
+            self.hyper_life = 500
+            self.score.value -= 100  # スコアを100消費
+
+        if self.state == "hyper":
+            # 無敵状態のエフェクト
+            self.image = pg.transform.laplacian(self.imgs[self.dire])
+            self.hyper_life -= 1
+        if self.hyper_life <= 0:
+            self.state = "normal"  # 無敵状態解除
+
         for k, mv in __class__.delta.items():
             if key_lst[k]:
                 sum_mv[0] += mv[0]
@@ -287,7 +305,7 @@ class EMP:
             emy.image = pg.transform.laplacian(emy.image)  # 敵機にラプラシアンフィルタ適用
         for bomb in bombs:
             bomb.speed = bomb.speed/2  # 爆弾のスピードを半分に設定
-            bomb.state = "inactive"  # 爆弾の状態をinactiveに設定
+            bomb.state = "inactive"  #   爆弾の状態をinactiveに設定
         self.yellow = pg.Surface((WIDTH,HEIGHT))
         pg.draw.rect(self.yellow, (255,255,0), pg.Rect(0,0,WIDTH,HEIGHT))
         self.yellow.set_alpha(50)
@@ -307,7 +325,7 @@ def main():
     bg_img = pg.image.load(f"fig/pg_bg.jpg")
     score = Score()
 
-    bird = Bird(3, (900, 400))
+    bird = Bird(3, (900, 400),score)
     bombs = pg.sprite.Group()
     beams = pg.sprite.Group()
     exps = pg.sprite.Group()
@@ -360,6 +378,16 @@ def main():
 
         for bomb in pg.sprite.spritecollide(bird, bombs, True):  # こうかとんと衝突した爆弾リスト
             if bomb.state == "active":  # bomb.stateがactiveのとき
+                bird.change_img(8, screen)  # こうかとん悲しみエフェクト
+                score.update(screen)
+                pg.display.update()
+                time.sleep(2)
+                return
+            if bird.state == "hyper":
+                # 無敵状態の場合は爆弾を爆発させてスコアを1アップ
+                exps.add(Explosion(bomb, 50))
+                score.value += 1
+            else:
                 bird.change_img(8, screen)  # こうかとん悲しみエフェクト
                 score.update(screen)
                 pg.display.update()
