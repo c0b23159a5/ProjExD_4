@@ -141,7 +141,7 @@ class Beam(pg.sprite.Sprite):
     """
     ビームに関するクラス
     """
-    def __init__(self, bird: Bird):
+    def __init__(self, bird: Bird, angle0 = 0):
         """
         ビーム画像Surfaceを生成する
         引数 bird：ビームを放つこうかとん
@@ -149,6 +149,7 @@ class Beam(pg.sprite.Sprite):
         super().__init__()
         self.vx, self.vy = bird.dire
         angle = math.degrees(math.atan2(-self.vy, self.vx))
+        angle += angle0
         self.image = pg.transform.rotozoom(pg.image.load(f"fig/beam.png"), angle, 1.0)
         self.vx = math.cos(math.radians(angle))
         self.vy = -math.sin(math.radians(angle))
@@ -240,6 +241,21 @@ class Score:
     def update(self, screen: pg.Surface):
         self.image = self.font.render(f"Score: {self.value}", 0, self.color)
         screen.blit(self.image, self.rect)
+    
+class NeoBeam:
+    """
+    弾幕を発生させるクラス
+    """
+    def __init__(self, bird: Bird, num: int):
+        self.bird = bird
+        self.num = 100 // (num - 1) # 個数に応じた数値を設定する
+
+    def gen_beams(self):
+        b_lst = [] # ビームの角度が入るからリストを生成
+        for i in range(-50, 51, self.num):
+            b_lst.append(i)
+        return [Beam(self.bird, i) for i in b_lst] # 角度ごとにBeamインスタンスを作りリストで返す。
+        
 
 
 def main():
@@ -254,6 +270,8 @@ def main():
     exps = pg.sprite.Group()
     emys = pg.sprite.Group()
 
+    neobeam = NeoBeam(bird, 100) # 弾幕のインスタンスを生成、右側が弾幕の個数
+
     tmr = 0
     clock = pg.time.Clock()
     while True:
@@ -261,8 +279,13 @@ def main():
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 return 0
-            if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
+            if key_lst[pg.K_c]:
+                if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
+                    beams.add(neobeam.gen_beams())
+            elif event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 beams.add(Beam(bird))
+        # if key_lst[pg.K_SPACE] and key_lst[pg.K_LSHIFT]:
+        #     beams.add(neobeam.gen_beams())
         screen.blit(bg_img, [0, 0])
 
         if tmr%200 == 0:  # 200フレームに1回，敵機を出現させる
@@ -288,6 +311,8 @@ def main():
             pg.display.update()
             time.sleep(2)
             return
+        
+
 
         bird.update(key_lst, screen)
         beams.update()
